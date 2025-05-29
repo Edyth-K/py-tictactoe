@@ -1,4 +1,5 @@
 import socket
+import json
 
 def run_server():
     # create new socket object for SERVER:
@@ -19,16 +20,12 @@ def run_server():
         print(f"Client connected from {addr}")
         
         while True:
-            # constantly accept connections
-            # server.accept() returns two variables:
-                # client: the client instance we use to communicate
-                # address: the address of the client
-            # client, addr = server.accept()
             message = client.recv(1024).decode()
             if not message:  # Client disconnected
                 break
             print(message)
-            client.send('Hello From Server'.encode())
+            # client.send('Hello From Server'.encode())
+            client.send(input("Message: ").encode())
             
     except KeyboardInterrupt:
         print("\nServer shutting down gracefully...")

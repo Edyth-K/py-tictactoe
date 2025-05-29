@@ -1,7 +1,5 @@
 # game logic and rendering
 
-
-
 def render_board(board):
     """
     Draw board to screen
