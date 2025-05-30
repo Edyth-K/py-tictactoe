@@ -1,11 +1,22 @@
 import socket
+import threading
 import json
+
+
 
 def run_server():
     # create new socket object for SERVER:
     # parameters: socket type (internet), connection type (TCP)
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Allow port reuse
+    
+    def receive_from_client(client):  # Add client parameter
+        while True:
+            try:
+                message = client.recv(1024).decode()
+                print(f"Client: {message}")
+            except:
+                break
 
     try:
         # bind server to address:
@@ -19,13 +30,15 @@ def run_server():
         client, addr = server.accept()
         print(f"Client connected from {addr}")
         
-        while True:
-            message = client.recv(1024).decode()
-            if not message:  # Client disconnected
-                break
-            print(message)
-            # client.send('Hello From Server'.encode())
-            client.send(input("Message: ").encode())
+        threading.Thread(target=receive_from_client,
+                        args=(client,),
+                        daemon=True).start()
+
+        running = True
+        while running:
+
+            server_message = input("Server: ")
+            client.send(server_message.encode())
             
     except KeyboardInterrupt:
         print("\nServer shutting down gracefully...")
