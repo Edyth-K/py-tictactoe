@@ -41,6 +41,7 @@ def run_server():
             client.send(server_message.encode())
             
     except KeyboardInterrupt:
+        client.send(":q".encode())
         print("\nServer shutting down gracefully...")
     except Exception as e:
         print(f"An error occurred: {e}")
