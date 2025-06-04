@@ -1,5 +1,6 @@
 import sys
 import struct
+import time
 import threading
 import socket
 import pygame
@@ -9,6 +10,8 @@ class TicTacToe:
 
         self.host = host
         self.port = port
+
+        self.kill = False
 
         self.socket = None
 
@@ -56,10 +59,8 @@ class TicTacToe:
                          (self.board_center[0] + self.space_size * 1.5, self.board_center[1] + self.space_size / 2))
         
     def place(self, space_index):
-        if 0 <= space_index < len(self.board):
-            if self.board[space_index] == self.null_char:
-                self.board[space_index] = self.teams[self.turn % 2]
-                self.turn += 1
+        if self.socket:
+            self.socket.sendall(struct.pack('B', space_index))
 
     def get_space(self, pos):
         space_index = pos[0] + pos[1] * 3
@@ -83,6 +84,7 @@ class TicTacToe:
         self.clicked = False
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                self.kill = True
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -114,6 +116,23 @@ class TicTacToe:
 
         self.clock.tick()
 
+    def deserialize(self, data):
+        update_format = 'BB9s'
+        # make sure we have enough data in the packet received
+        #   note: multiple packets can be bundled or split up
+        #   note: if not enough data, should make send data to a buffer until enough is received
+        if len(data) >= struct.calcsize(update_format):
+            turn, winner, board = struct.unpack_from(update_format, data, 0)
+        #   turn: int, winner: int, board: bytes()
+            self.turn = turn
+        #   chr(): convert ASCII back to char
+            if chr(winner) != self.null_char:
+                self.winner = chr(winner)
+            else:
+                self.winner = None 
+        #   decode binary into 9 char string, then turn into list of 9 chars
+            self.board = list(board.decode('utf-8')) 
+
     def run_listener(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
@@ -122,11 +141,20 @@ class TicTacToe:
             s.settimeout(1)
             print("Connected: ", s)
             self.socket = s
+            while not self.kill:
+                try:
+                    data = self.socket.recv(4096)
+                    if len(data):
+                        self.deserialize(data) # convert binary data to usable info
+                except socket.timeout:
+                    pass
+                time.sleep(0.001)
             
 
     def run(self):
         threading.Thread(target=self.run_listener).start()
         while True:
             self.update()
+            time.sleep(0.001)
 
 TicTacToe().run()
